@@ -1,0 +1,5 @@
+0.02
+	- Introduce TRAMPOLINE_SAVE_OP and TRAMPOLINE_SAVE_ARGS
+
+0.01
+	- Initial release
