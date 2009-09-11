@@ -13,6 +13,11 @@ typedef struct {
 	OP fakeop;
 	UNOP trampoline;
 
+	OP *saved_op;
+
+	SV **saved_args;
+	I32 saved_items;
+
 	/* the actual function to call as if it were pp_addr */
 
 	TRAMPOLINE_HOOK((*hook));
@@ -75,17 +80,86 @@ void b_hooks_xsub_callasop_setup_trampoline (pTHX_ b_hooks_xsub_callasop_hook_t 
 						value was left on the stack */
 }
 
+void b_hooks_xsub_callasop_trampoline_save_args (pTHX_ SV **start, I32 items) {
+	dMY_CXT;
+	dSP;
+
+	assert(MY_CXT.saved_args == NULL);
+	assert(MY_CXT.saved_items == 0);
+
+	if ( items != 0 ) {
+		MY_CXT.saved_items = items;
+		Newx(MY_CXT.saved_args, items, SV *);
+
+		Copy(start, MY_CXT.saved_args, items, SV *);
+
+		SP = start - 1;
+		PUTBACK;
+	}
+}
+
+void b_hooks_xsub_callasop_trampoline_restore_args (pTHX) {
+	dSP;
+	dMY_CXT;
+	I32 i;
+
+	if ( MY_CXT.saved_items > 0 ) {
+		assert(MY_CXT.saved_args != NULL);
+
+		EXTEND(SP, MY_CXT.saved_items);
+
+		Copy(MY_CXT.saved_args, SP + 1, MY_CXT.saved_items, SV *);
+
+		SP += MY_CXT.saved_items;
+
+		PUTBACK;
+
+		Safefree(MY_CXT.saved_args);
+		MY_CXT.saved_args = NULL;
+		MY_CXT.saved_items = 0;
+	} else {
+		assert(MY_CXT.saved_args == NULL);
+	}
+}
+
+/* stashes PL_op before the trampoline hack. this allows cont_reset,
+ * cont_invoke and cont_shift to have a proper value for PL_op */
+void b_hooks_xsub_callasop_trampoline_save_op (pTHX) {
+	dMY_CXT;
+
+	assert(MY_CXT.saved_op == NULL);
+
+	assert(PL_op);
+	assert(PL_op->op_next);
+
+	MY_CXT.saved_op = PL_op;
+}
 
 
-static TRAMPOLINE_HOOK(test)
+/* restore PL_op's state to what it was before the trampoline */
+void b_hooks_xsub_callasop_trampoline_restore_op (pTHX) {
+	dMY_CXT;
+
+	assert(MY_CXT.saved_op != NULL);
+	assert(MY_CXT.saved_op->op_next);
+
+	PL_op = MY_CXT.saved_op;
+
+	MY_CXT.saved_op = NULL;
+}
+
+
+
+
+static TRAMPOLINE_HOOK(test_hook)
 {
 	dSP;
 	dMARK;
 
 	PUSHMARK(SP);
 
-	mXPUSHs(newSVpvs("trampoline"));
-	mXPUSHs(newSVpvs("Test::More::pass"));
+	TRAMPOLINE_RESTORE_OP;
+	TRAMPOLINE_RESTORE_ARGS; /* should be magic */
 
 	PUTBACK;
 
@@ -93,14 +167,23 @@ static TRAMPOLINE_HOOK(test)
 }
 
 MODULE = B::Hooks::XSUB::CallAsOp	PACKAGE = B::Hooks::XSUB::CallAsOp
+PROTOTYPES: DISABLE
 
 BOOT:
 {
 	MY_CXT_INIT;
 	MY_CXT.hook = NULL;
+
+	MY_CXT.saved_args  = NULL;
+	MY_CXT.saved_items = 0;
+
+	MY_CXT.saved_op    = NULL;
 }
 
-void __test ()
+void __test (...)
 	PPCODE:
-		TRAMPOLINE(test);
+		TRAMPOLINE_SAVE_OP;
+		TRAMPOLINE_SAVE_ARGS;
+		assert(SP == &ST(-1));
+		TRAMPOLINE(test_hook);
 

@@ -74,6 +74,35 @@ Given a function pointer C<hook>, trampoline to it on the next PL_op dispatch.
 This will C<PUTBACK>, invoke C<b_hooks_xsub_callasop_setup_trampoline>, and
 then return from the current XSUB with no value.
 
+=item TRAMPOLINE_SAVE_OP
+
+Save the value of C<PL_op>.
+
+Must be called before the C<TRAMPOLINE> macro, and followed by C<TRAMPOLINE_RESTORE_OP>
+
+=item TRAMPOLINE_RESTORE_OP
+
+Must be called inside your C<TRAMPOLINE_HOOK> to set C<PL_op> to what it was
+just before the trampiline.
+
+The C<op_next> of the restored op and the trampoline op are the same, so you
+should still use C<return NORMAL>.
+
+=item TRAMPOLINE_SAVE_ARGS
+
+Saves the args given to the xsub in a temporary buffer.
+
+This must be called before the C<TRAMPOLINE> macro, and followed by C<TRAMPOLINE_RESTORE_ARGS>.
+
+Requires C<ax> and C<items> to be defined, calls C<SPAGAIN>.
+
+=item TRAMPOLINE_RESTORE_ARGS
+
+Appends the args from the buffer back to the stack, and then invokes C<SPAGAIN>.
+
+Does B<not> modify ax, you need to add a mark yourself and use it if you need
+it.
+
 =back
 
 =head1 TYPES
