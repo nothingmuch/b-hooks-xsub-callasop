@@ -6,7 +6,7 @@ package B::Hooks::XSUB::CallAsOp;
 require 5.008001;
 use parent qw(DynaLoader);
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 $VERSION = eval $VERSION;
 
 sub dl_load_flags { 0x01 }
