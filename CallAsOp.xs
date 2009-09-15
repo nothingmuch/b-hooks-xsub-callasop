@@ -57,7 +57,9 @@ static void setup_trampoline_cb (pTHX_ void *ptr) {
 	PL_op = &MY_CXT.fakeop;
 
 	assert(PL_op->op_next);
-	assert(PL_op->op_next->op_next);
+
+	/* could be NULL in DESTROY */
+	/* assert(PL_op->op_next->op_next); */
 }
 
 void b_hooks_xsub_callasop_setup_trampoline (pTHX_ b_hooks_xsub_callasop_hook_t hook) {
