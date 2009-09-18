@@ -5,7 +5,12 @@
 
 START_EXTERN_C
 
-#define TRAMPOLINE(hook) PUTBACK, b_hooks_xsub_callasop_setup_trampoline(aTHX_ hook), XSRETURN(0)
+#define TRAMPOLINE(hook)                                    \
+	STMT_START {                                            \
+		PUTBACK;                                            \
+		b_hooks_xsub_callasop_setup_trampoline(aTHX_ hook); \
+		XSRETURN(0);                                        \
+	} STMT_END
 
 #define TRAMPOLINE_HOOK(hook) OP *hook (pTHX)
 
